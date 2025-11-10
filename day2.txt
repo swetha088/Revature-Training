@@ -1,0 +1,155 @@
+1. INNER JOIN
+
+List customers and their orders. 
+
+select 
+c.customer_id,
+c.name as customer_name,
+o.order_id,
+o.order_date
+from sales_data.customers as c
+inner join sales_data.orders as o
+on c.customer_id = o.customer_id;
+
+2. LEFT JOIN(OR LEFT OUTER JOIN )
+
+List all the customers and their orders (including those with no orders yet)
+
+select 
+c.customer_id,
+c.name as customer_name,
+o.order_id,
+o.order_date
+from sales_data.customers as c
+left join sales_data.orders as o
+on c.customer_id = o.customer_id
+
+3. RIGHT JOIN(OR RIGHT OUTER JOIN)
+Show all orders and the corresponding customer information
+
+SELECT 
+    o.order_id,
+    o.product_id,
+    o.order_date,
+    c.customer_id,
+    c.name AS customer_name
+FROM sales_data.orders AS o
+RIGHT JOIN sales_data.customers AS c
+ON o.customer_id = c.customer_id;
+
+
+4.FULL OUTER JOIN
+
+List all customers and all orders, including unmatched records from both sides.
+
+SELECT 
+    c.customer_id,
+    c.name AS customer_name,
+    o.order_id,
+    o.product_id,
+    o.order_date
+FROM sales_data.customers AS c
+FULL OUTER JOIN sales_data.orders AS o
+ON c.customer_id = o.customer_id;
+	
+
+5. CROSS JOIN 
+
+select 
+c.name as customer_name,
+p.name as product_name
+from sales_data.customers as c
+cross join sales_data.products as p;
+
+6.SELF JOIN
+
+select 
+  A.name as customer1,
+  B.name as customer2,
+  A.city
+from sales_data.customers as A
+join sales_data.customers as B
+on A.city = B.city
+and A.customer_id <> B.customer_id;
+
+
+7 JOINS ON MULTIPLE CONDITIONS
+
+Join orders and products on product_id , and filter by category
+
+SELECT 
+o.order_id,
+p.name as product_name,
+p.category,
+o.quantity,
+o.total_amount,
+from sales_data.orders as o
+join  sales_data.products as p
+on o.product_id = p.product_id
+where p.category ='Electronics';
+
+
+NORMALIZATION
+
+ CREATE OR REPLACE TABLE sales_data.sales_flattened AS
+SELECT 
+  o.order_id,
+  o.order_date,
+  o.quantity,
+  o.total_amount,
+  c.customer_id,
+  c.name AS customer_name,
+  c.city,
+  p.product_id,
+  p.name AS product_name,
+  p.category,
+  p.price 
+FROM `sales_data.orders` AS o
+JOIN `sales_data.customers` AS c ON o.customer_id = c.customer_id
+JOIN `sales_data.products` AS p ON o.product_id = p.product_id;
+
+DENORMALIZATION
+
+create or replace table `academic-oath-477503-c6.sales_data.customer_orders` as
+select
+  c.customer_id,
+  c.name,
+  c.city,
+  o.order_id,
+  o.order_date,
+  o.total_amount
+from `academic-oath-477503-c6.sales_data.customers` c
+left join `academic-oath-477503-c6.sales_data.orders` o
+  on c.customer_id = o.customer_id;
+
+select * from sales_data.customer_orders;
+
+
+NESTED JSON
+
+Nested JSON refers to a JSON structure where values themselves are JSON objects or arrays. It's like having JSON inside JSON — allowing you to represent complex, hierarchical data.
+
+CREATE OR REPLACE TABLE sales_data.orders_nested AS
+SELECT 
+  o.order_id,
+  o.order_date,
+  c.customer_id,
+  c.name AS customer_name,
+  ARRAY_AGG(STRUCT(p.product_id, p.name AS product_name, p.category, o.quantity,
+o.total_amount)) AS items
+FROM `sales_data.orders` AS o
+JOIN `sales_data.customers` AS c ON o.customer_id = c.customer_id
+JOIN `sales_data.products` AS p ON o.product_id = p.product_id
+GROUP BY o.order_id, o.order_date, c.customer_id, c.name;
+ 
+
+
+
+
+
+
+
+
+
+
+
