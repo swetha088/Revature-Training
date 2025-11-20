@@ -1,0 +1,60 @@
+#“Install the openpyxl Python library into this notebook environment so that I can read/write Excel files.”
+
+%pip install openpyxl 
+
+#%restart_python is a magic command in Databricks notebooks.
+
+It restarts the Python interpreter/kernel for the notebook session.
+
+Clears all variables, imports, cached data, and loaded libraries
+
+%restart_python
+
+
+#Reads an Excel file into Pandas.
+
+Converts it to a Spark DataFrame.
+
+Displays the data.
+
+Prints the schema.
+
+Cleans up column names for Spark compatibility by replacing spaces with underscores.
+
+
+
+import pandas as pd
+
+pdf=pd.read_excel("/Volumes/workspace/default/myvolume/Financial Sample.xlsx")
+df=spark.createDataFrame(pdf)
+display(df)
+
+df.printSchema()
+
+for col_name in df.columns:
+    df =df.withColumnRenamed(col_name, col_name.replace(" ", "_"))
+
+
+
+#This code casts specified numeric columns in a Spark DataFrame to double type to enable proper calculations and analytics.
+
+
+from pyspark.sql.functions import col 
+num_cols=[
+    "Units_Sold",
+    "Manufacturing_Price",
+    "Sales_Price",
+    "Gross_Sales",
+    "Discounts",
+    "_Sales",
+    "COGS",
+    "Profit",
+]
+for c in num_cols:
+    if c in df.columns:
+        df= df.withColumn(c,col(c).cast("double"))
+
+#This code removes all rows with null values from the DataFrame to create a clean Silver layer for further analysis.
+
+df_silver = df.dropna()
+display(df_silver)

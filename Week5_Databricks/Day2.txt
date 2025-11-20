@@ -1,0 +1,150 @@
+
+
+#list of all files
+
+%fs ls /
+
+#The file which is available in that folder
+
+%fs ls /databricks-datasets
+
+#Subfolder
+
+%fs ls /databricks-datasets/nyctaxi
+
+#Code lists and displays all the NYC Yellow Taxi trip CSV files in DBFS at the specified path.
+
+
+taxi_path= "/databricks-datasets/nyctaxi/tripdata/yellow"
+display(dbutuls.fs.ls.(taxi_path))  #dbutils--> It is a utility tool helps to write files, libraries.
+
+
+#This code reads a CSV file of NYC Yellow Taxi trips into a Spark DataFrame, prints its schema, and shows the first 5 rows for inspection
+
+text_path='dbfs:/databricks-datasets/nyctaxi/tripdata/yellow/yellow-tripdata-2009-01.csv.gz'
+df_raw=spark.read.csv(taxi_path)
+df_raw.printSchema() #printSchema()--> display the structure of the dataframe
+df_raw.show(5)       #show()--> show the table
+
+
+#When you specify any data/different format have to use format('format_type).load
+
+csv_path = "/databricks-datasets/learning-spark-v2/people/people-10m.delta"
+df_raw=spark.read.format("delta").load(csv_path)
+df_raw.printSchema()
+df_raw.show(5)
+
+
+#Create of view
+
+df_raw.CreateOrReplaceTempView("taxi_path")
+
+
+# Want to know the view is created or not use this 
+
+%sql
+show tables;
+
+#give limit 
+
+%sql
+
+select * from taxi_path limit 10;
+
+#from trips
+
+%sql
+
+select * from samples.nyctaxi.trips limit 10
+
+#This code loads the NYC Taxi Trips table into a DataFrame, prints its schema, and displays the first 5 rows of trip_distance and fare_amount.
+
+df_raw = spark.table("samples.nyctaxi.trips")
+
+df_raw.printSchema()
+df_raw.select("trip_distance","fare_amount").show(5)
+
+#
+
+
+from pyspark.sql.functions import col
+
+df_silver =(
+    df_raw
+    .filter(col("trip_distance")>=0)
+    .filter(col("fare_amount")>=0)
+)
+
+df_silver.printSchema()
+df_silver.show(25)
+
+#This code creates a cleaned Silver-layer DataFrame by keeping only rows with non-negative trip_distance and fare_amount, then prints its schema and shows the first 25 rows.
+
+
+from pyspark.sql.functions import col
+
+df_silver =(
+    df_raw
+    .filter(col("trip_distance")>=0)
+    .filter(col("fare_amount")>=0)
+)
+
+df_silver.printSchema()
+df_silver.show(25)
+
+
+#Specific required columns
+
+
+from pyspark.sl.functions import to_timestamp
+
+df_silver=(
+  df_silver
+  .withColumnRenamed("tpep_pickup_datetime","pickup_time")
+  .withColumnRenamed("tpep_dropoff_datetime","dropoff_time")
+  .withColumn("pickup_time", to_timestamp("pickup_time"))
+  .withColumn("dropoff_time", to_timestamp("dropoff_time"))
+)
+
+
+
+#This code creates a Gold-layer DataFrame that aggregates daily total fare revenue and number of trips by converting pickup times to dates and grouping by day.
+from pyspark.sql.functions import to_date, sum as _sum, count
+
+df_gold_revenue =(
+    df_silver
+    .withColumn("day",to_date("pickup_time")) #convert pickup_time -> date
+    .groupBy("day")
+    .agg(
+        _sum("fare_amount").alias("total_fare_revenue"),
+        count("*").alias("num_trips")#how many trips per day #you could also add _sum("trip_distance").alias("total_distance")     
+    )
+    .orderBy("day")
+
+    
+)
+display(df_gold_revenue)
+
+#“Creates and selects the taxi_demo_db database for use
+
+%sql 
+CREATE DATABASE IF NOT EXISTS taxi_demo_db;
+USE taxi_demo_db;
+
+
+#Saves Silver and Gold DataFrames as Delta tables in taxi_demo_db, overwriting if they exist.
+df_silver.write.mode("overwrite").format("delta").saveAsTable("taxi_demo_db.trips_silver")
+df_gold_revenue.write.mode("overwrite").format("delta").saveAsTable("taxi_demo_db.revenue_gold")
+
+
+#Displays daily revenue and trips from the Gold table.
+
+%sql
+SELECT day,total_fare_revenue,num_trips
+FROM taxi_demo_db.revenue_gold
+ORDER BY day;
+
+
+
+
+
