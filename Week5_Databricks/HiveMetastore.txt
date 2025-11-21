@@ -1,0 +1,48 @@
+%sql
+
+--What is my current database?
+SELECT current_database();
+
+--List all databases known to Hive metastore
+SHOW DATABASES;
+
+
+
+%sql
+
+CREATE DATABASE IF NOT EXISTS training_db;
+
+--Switch to that database
+USE training_db;
+
+--verify 
+SELECT current_database();
+
+
+data=[
+    (1,"Swetha","Electronics",1500.0),
+    (1,"Sree","Grocery",500.0),
+    (1,"Lucky","Clothing", 800.0),
+    (1,"Lakshmi","Electronics",2500.0)
+]
+
+columns = ["order_id","customer_name","category","amount"]
+df = spark.createDataFrame(data,columns)
+df.display()
+
+
+df_orders=spark.createDataFrame(data,columns)
+df_orders.show()
+
+
+
+
+df_orders.write.mode("overwrite").saveAsTable("training_db.daily_orders_managed")
+
+
+%sql
+USE training_db;
+SHOW TABLES;
+DESCRIBE EXTENDED daily_orders_managed;
+
+

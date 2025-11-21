@@ -1,0 +1,130 @@
+STEP 1: Create a Delta Table 
+
+data=[
+    (1,"Ram",50000),
+    (2,"Sita",60000),
+    (3,"Sree",55000)
+]
+
+columns=["id","name","salary"]
+
+df=spark.createDataFrame(data,columns)
+df.show()
+
+
+#STEP 2: Save as Delta Table
+#create a volume name called tmp in catalog after that execute this 
+and it will create one folder name called employees_delta
+
+df.write.format("delta").mode("overwrite").save("/Volumes/workspace/default/tmp/employees_delta")
+
+
+#STEP 3: READ Delta Table
+
+df_delta=spark.read.format("delta").load("/Volumes/workspace/default/tmp/employees_delta")
+
+
+STEP 4: Delta Table Update
+
+from delta.tables import DeltaTable
+
+deltaTable =DeltaTable.forPath(spark,"/Volumes/workspace/default/tmp/employees_delta")
+
+deltaTable.update(
+    condition ="id = 1",
+    set={"salary":"70000"}
+)
+
+
+#Re_read table:
+
+display(spark.read.format("delta").load("/Volumes/workspace/default/tmp/employees_delta"))
+
+
+#ACID Transaction - DELETE on Delta Table
+
+deltaTable.delete("id =3")
+
+display(spark.read.format("delta").load("/Volumes/workspace/default/tmp/employees_delta"))
+
+
+#Add and Update a row
+new_data=[
+    (2,"Sita",65000),  #update row
+    (4,"Sree",62000) #new row
+]
+
+df_new=spark.createDataFrame(new_data, ["id","name","salary"])
+display(df_new)
+
+
+
+#STEP 6: ACID Transaction - MERGE(Upsert)
+
+deltaTable.alias("old")\
+    .merge(
+        df_new.alias("new"),
+        "old.id = new.id"
+    )\
+        .whenMatchedUpdate(set={"salary":"new.salary"})\
+        .whenNotMatchedInsertAll()\
+        .execute()
+
+
+#Re-read
+
+display(spark.read.format("delta").load("/Volumes/workspace/default/tmp/employees_delta"))
+
+
+STEP 7 : Time Travel Demo (Version History)
+%sql
+DESCRIBE HISTORY delta. `/Volumes/workspace/default/tmp/employees_delta`;
+
+
+
+#Read Version0
+df_v0 = spark.read.format("delta").option("versionAsOf", 0).load("/Volumes/workspace/default/tmp/employees_delta")
+display(df_v0)
+
+#STEP 8 : View Delta Transaction Log
+
+%fs ls /Volumes/workspace/default/tmp/employees_delta/_delta_log/
+
+
+#Insert Log
+
+%fs head /Volumes/workspace/default/tmp/employees_delta/_delta_log/00000000000000000000.json
+
+
+#Case 1: Failed Update --> Rollback
+
+try:
+    deltaTable.update(
+        condition="id = 'ABC'", #wrong type
+        set={"salary": 90000}
+    )
+except Exception as e:
+    print("Transaction failed:",e)
+
+#File Compact - Optimize
+
+How to see OPTIMIZE doing real work
+Step 1 : Write many files artificially
+
+
+for i in range(20):
+    df=spark.createDataFrame([(i,f"name{i}",100000+i)],("id","name","salary"))
+    df.write.format("delta").mode("append").save("/Volumes/workspace/default/tmp/employees_delta_big")
+
+
+#Step 2: Run Optimize
+
+%sql
+OPTIMIZE delta.`/Volumes/workspace/default/tmp/employees_delta_big`;
+
+
+#
+
+
+
+
