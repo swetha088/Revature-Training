@@ -1,0 +1,59 @@
+
+
+Bronze Layer 
+Task B1 — Read Raw CSVs Into DataFrames
+
+Task B2 — Save Bronze Tables as Delta
+
+Count rows in each Bronze table.
+Identify rows with null/empty customer_id.
+Find negative quantities in order_items.
+Identify incorrect date formats in orders. 
+
+
+Task B1 — Read Raw CSVs Into DataFrames
+
+orders_df = spark.read.format("csv").option("header","true").load("/Volumes/workspace/default/assignment/retail_orders.csv")
+order_items_df=spark.read.format("csv").option("header","true").load("/Volumes/workspace/default/assignment/retail_order_items.csv")
+customers_df=spark.read.format("csv").option("header","true").load("/Volumes/workspace/default/assignment/retail_customers.csv")
+products_df= spark.read.format("csv").option("header","true").load("/Volumes/workspace/default/assignment/retail_products.csv")
+
+Task B2 — Save Bronze Tables as Delta
+
+orders_df.write.format("delta").mode("overwrite").save("/Volumes/workspace/default/assignment/bronze/retail_orders")
+order_items_df.write.format("delta").mode("overwrite").save("/Volumes/workspace/default/assignment/bronze/retail_order_items")
+customers_df.write.format("delta").mode("overwrite").save("/Volumes/workspace/default/assignment/bronze/retail_customers") 
+products_df.write.format("delta").mode("overwrite").save("/Volumes/workspace/default/assignment/bronze/retail_products")
+
+
+Count rows in each Bronze table.
+
+
+print(orders_df.count())
+print(order_items_df.count())
+print(customers_df.count())
+print(products_df.count())
+
+
+Identify rows with null/empty customer_id
+
+from pyspark.sql.functions import col
+orders_df.filter(col("customer_id").isNull()).show() #identify missing values
+
+customers_df.filter(col("customer_id").isNull()).show()
+
+
+
+Find negative quantities in order_items
+
+negative_order_items_df= spark.read.format("delta").load("/Volumes/workspace/default/bronze/orders_items").filter(col("quantity")<0).show()
+
+
+
+
+
+
+
+
+
+
